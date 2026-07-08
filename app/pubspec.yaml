@@ -1,0 +1,43 @@
+name: context_contacts
+description: >-
+  Un carnet de contacts intelligent : agrège plusieurs sources (téléphone,
+  Google, iCloud), détecte et fusionne les doublons, et maintient une base
+  propre et à jour. MVP centré sur l'agrégation + la déduplication.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # État & injection légère
+  flutter_riverpod: ^2.5.1
+
+  # Accès au carnet de contacts natif (Android/iOS)
+  flutter_contacts: ^1.1.9+2
+
+  # Utilitaires
+  collection: ^1.18.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  test: ^1.25.0
+
+flutter:
+  uses-material-design: true
+
+# ─────────────────────────────────────────────────────────────────────────
+# Évolutions prévues (itération 2), volontairement hors MVP pour un build simple :
+#   - drift + sqlite3_flutter_libs + path_provider : persistance locale de la
+#     base canonique et des décisions de fusion.
+#   - phone_numbers_parser : normalisation E.164 exhaustive (remplace
+#     SimplePhoneNormalizer via l'interface PhoneNormalizer, sans toucher au domaine).
+#   - googleapis / carddav : synchro bidirectionnelle Google & iCloud.
+# ─────────────────────────────────────────────────────────────────────────
