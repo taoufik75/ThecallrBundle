@@ -106,6 +106,34 @@ describe('unifyContacts', () => {
     expect(reviewSuggestions).toHaveLength(0); // masqués
   });
 
+  it('construit un index e-mail → id de contact (pour l\'agenda)', () => {
+    const { contacts, emailIndex } = unifyContacts([
+      raw({
+        sourceId: 'a',
+        displayName: 'Camille',
+        emails: ['Camille@X.fr'],
+        phones: [{ e164: '+33612345678' }],
+      }),
+    ]);
+    const id = contacts[0]!.id;
+    // Normalisé en minuscules.
+    expect(emailIndex.get('camille@x.fr')).toBe(id);
+  });
+
+  it('l\'index e-mail pointe vers le contact fusionné après fusion manuelle', () => {
+    const { contacts, emailIndex } = unifyContacts(
+      [
+        raw({ sourceId: 'a', displayName: 'Léa', emails: ['lea.perso@x.fr'] }),
+        raw({ sourceId: 'b', displayName: 'Léa Martin', emails: ['lea.pro@y.fr'] }),
+      ],
+      { manualMerges: [['a', 'b']] },
+    );
+    expect(contacts).toHaveLength(1);
+    const id = contacts[0]!.id;
+    expect(emailIndex.get('lea.perso@x.fr')).toBe(id);
+    expect(emailIndex.get('lea.pro@y.fr')).toBe(id);
+  });
+
   it('laisse passer les fiches uniques telles quelles', () => {
     const { contacts } = unifyContacts([
       raw({ sourceId: 'solo', displayName: 'Alice', phones: [{ e164: '+33611111111' }] }),

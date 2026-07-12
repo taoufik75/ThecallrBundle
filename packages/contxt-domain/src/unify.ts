@@ -19,6 +19,11 @@ import {
 export interface UnifyResult {
   readonly contacts: Contact[];
   readonly reviewSuggestions: MergeGroup[];
+  /**
+   * Index e-mail (normalisé minuscule) → identifiant du contact unifié. Sert à
+   * relier les participants d'un événement d'agenda aux bons contacts.
+   */
+  readonly emailIndex: Map<string, string>;
 }
 
 export interface UnifyOptions {
@@ -76,9 +81,18 @@ export function unifyContacts(
     if (list) list.push(i);
     else components.set(root, [i]);
   }
-  const contacts = [...components.values()].map((idxs) =>
-    buildContact(idxs.map((i) => raws[i]!)),
-  );
+  const contacts: Contact[] = [];
+  const emailIndex = new Map<string, string>();
+  for (const idxs of components.values()) {
+    const members = idxs.map((i) => raws[i]!);
+    const contact = buildContact(members);
+    contacts.push(contact);
+    for (const m of members) {
+      for (const email of m.emails) {
+        emailIndex.set(email.trim().toLowerCase(), contact.id);
+      }
+    }
+  }
 
   // Revue : groupes de confiance basse encore séparés et non ignorés.
   const reviewSuggestions = groups.filter((g) => {
@@ -90,7 +104,7 @@ export function unifyContacts(
     return roots.size > 1; // pas encore fusionnés
   });
 
-  return { contacts, reviewSuggestions };
+  return { contacts, reviewSuggestions, emailIndex };
 }
 
 /** Clé canonique d'un ensemble de sourceIds (indépendante de l'ordre). */

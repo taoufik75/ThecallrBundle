@@ -65,7 +65,8 @@ export async function loadNowData(): Promise<NowData> {
     const unified = unifyContacts(raws, { manualMerges, dismissed });
     const contacts = applyOverrides(unified.contacts, overrides);
 
-    const events = await readUpcomingEvents(new Map());
+    // Relie les participants d'agenda aux contacts via leurs e-mails.
+    const events = await readUpcomingEvents(unified.emailIndex);
     const snapshot: ContextSnapshot = {
       now: new Date(),
       contacts,

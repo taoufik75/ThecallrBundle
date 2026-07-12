@@ -52,7 +52,7 @@ packages/contxt-domain/    # cœur métier, TS pur, testé
     unify.ts               # pipeline : RawContact[] → Contact[] (dedupe + décisions)
     overrides.ts           # éditions utilisateur appliquées aux contacts
     index.ts
-  test/                    # 32 tests (scénarios + dédup + unification + overrides)
+  test/                    # 34 tests (scénarios + dédup + unification + overrides)
 app/                       # projet Expo / React Native
   App.tsx                  # onglets Maintenant / Doublons
   metro.config.js          # résolution monorepo
