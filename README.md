@@ -22,7 +22,7 @@ docs/                       # documentation produit & technique
 
 ```bash
 npm install
-npm test          # 45 tests : 35 (domaine) + 10 (data de l'app)
+npm test          # 47 tests : 35 (domaine) + 12 (data de l'app)
 npm run typecheck
 ```
 

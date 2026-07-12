@@ -12,6 +12,7 @@ import {
 } from 'contxt-domain';
 import { importDeviceContacts, readUpcomingEvents } from './contactsSource';
 import { importAndroidCallLog, recordCall } from './callHistory';
+import { fetchGooglePeople } from './googlePeopleSource';
 import {
   initDb,
   loadDecision,
@@ -21,7 +22,7 @@ import {
   saveCallEvent,
   saveDecision,
   saveOverrides,
-  saveRaws,
+  saveRawsForProvider,
 } from './db';
 import { buildSampleSnapshot } from './sampleSnapshot';
 
@@ -54,8 +55,9 @@ export async function loadNowData(): Promise<NowData> {
 
     let raws = await loadRaws();
     if (raws.length === 0) {
-      raws = await importDeviceContacts();
-      if (raws.length > 0) await saveRaws(raws);
+      const deviceRaws = await importDeviceContacts();
+      if (deviceRaws.length > 0) await saveRawsForProvider('device', deviceRaws);
+      raws = deviceRaws;
     }
     if (raws.length === 0) return sampleData();
 
@@ -128,6 +130,15 @@ export async function dismissGroup(sourceIds: readonly string[]): Promise<void> 
   const dismissed = await loadDecision(KEY_DISMISSED);
   dismissed.push([...sourceIds]);
   await saveDecision(KEY_DISMISSED, dismissed);
+}
+
+/**
+ * Importe les contacts Google (via un jeton OAuth) comme 2ᵉ source. La dédup
+ * inter-sources est ensuite gérée par l'unification au prochain chargement.
+ */
+export async function importGoogleContacts(accessToken: string): Promise<void> {
+  const raws = await fetchGooglePeople(accessToken);
+  await saveRawsForProvider('google', raws);
 }
 
 function sampleData(): NowData {

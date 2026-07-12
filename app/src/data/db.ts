@@ -113,14 +113,21 @@ export async function loadRecentCallEvents(sinceDays = 30): Promise<CallEvent[]>
 
 // --- Fiches brutes importées (matière première de l'unification) ---
 
-/** Remplace le cache des fiches brutes importées. */
-export async function saveRaws(raws: readonly RawContact[]): Promise<void> {
+/**
+ * Remplace les fiches brutes d'un fournisseur donné (device, google…), sans
+ * toucher aux autres sources. Permet d'ajouter/rafraîchir Google sans effacer
+ * le carnet natif, et inversement.
+ */
+export async function saveRawsForProvider(
+  provider: string,
+  raws: readonly RawContact[],
+): Promise<void> {
   const d = await db();
   await d.withTransactionAsync(async () => {
-    await d.execAsync('DELETE FROM raw_contacts;');
+    await d.runAsync('DELETE FROM raw_contacts WHERE source_id LIKE ?', `${provider}:%`);
     for (const r of raws) {
       await d.runAsync(
-        'INSERT INTO raw_contacts (source_id, json) VALUES (?, ?)',
+        'INSERT OR REPLACE INTO raw_contacts (source_id, json) VALUES (?, ?)',
         r.sourceId,
         rawContactToJson(r),
       );

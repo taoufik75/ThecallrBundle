@@ -62,8 +62,12 @@ app/                       # projet Expo / React Native
       mappers.ts           # natif → RawContact / CalendarEvent (purs, testés)
       serialize.ts         # (dé)sérialisation des fiches brutes (pure, testée)
       contactsSource.ts    # expo-contacts + expo-calendar
-      db.ts                # expo-sqlite : fiches brutes + décisions (fusions/ignorés)
-      useNowData.ts        # orchestration : import → unifie → décisions → classe
+      googlePeopleMap.ts   # personne Google → RawContact (pure, testée)
+      googlePeopleSource.ts# fetch API People (2ᵉ source)
+      googleAuth.ts        # OAuth Google (expo-auth-session)
+      callHistory.ts       # enregistrement des appels ; callLogMap.ts (Android, pur)
+      db.ts                # expo-sqlite : fiches brutes (par source) + décisions + appels
+      useNowData.ts        # orchestration : import(s) → unifie → décisions → classe
       sampleSnapshot.ts    # repli de démo
     ui/
       NowScreen.tsx        # écran « Maintenant »
