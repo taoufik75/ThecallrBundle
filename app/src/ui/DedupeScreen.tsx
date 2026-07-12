@@ -22,8 +22,12 @@ const REASON_FR: Record<MatchReason, string> = {
  */
 export function DedupeScreen({
   groups,
+  onMerge,
+  onDismiss,
 }: {
   groups: MergeGroup[];
+  onMerge: (group: MergeGroup) => void;
+  onDismiss: (group: MergeGroup) => void;
 }): React.JSX.Element {
   return (
     <View style={shared.screen}>
@@ -32,7 +36,9 @@ export function DedupeScreen({
         data={groups}
         keyExtractor={(g) => g.members.map((m) => m.sourceId).join('|')}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <GroupCard group={item} />}
+        renderItem={({ item }) => (
+          <GroupCard group={item} onMerge={onMerge} onDismiss={onDismiss} />
+        )}
         ListEmptyComponent={
           <Text style={styles.empty}>
             Aucun doublon à vérifier. Les fusions évidentes (même numéro ou
@@ -44,18 +50,23 @@ export function DedupeScreen({
   );
 }
 
-function GroupCard({ group }: { group: MergeGroup }): React.JSX.Element {
+function GroupCard({
+  group,
+  onMerge,
+  onDismiss,
+}: {
+  group: MergeGroup;
+  onMerge: (group: MergeGroup) => void;
+  onDismiss: (group: MergeGroup) => void;
+}): React.JSX.Element {
   const reasons = [...group.reasons].map((r) => REASON_FR[r]).join(', ');
+  const names = group.members.map((m) => m.displayName).join(', ');
 
-  const merge = () => {
-    // TODO(data) : appliquer la fusion (buildContact + saveContacts) puis
-    // recharger. Branché à la persistance dans un prochain incrément.
-    Alert.alert(
-      'Fusion',
-      `Fusionner ${group.members.length} fiches : ${group.members
-        .map((m) => m.displayName)
-        .join(', ')} ?`,
-    );
+  const confirmMerge = () => {
+    Alert.alert('Fusionner ces fiches ?', names, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Fusionner', onPress: () => onMerge(group) },
+    ]);
   };
 
   return (
@@ -67,9 +78,14 @@ function GroupCard({ group }: { group: MergeGroup }): React.JSX.Element {
         </Text>
       ))}
       <Text style={styles.why}>Indice : {reasons}</Text>
-      <TouchableOpacity style={styles.mergeBtn} onPress={merge}>
-        <Text style={styles.mergeBtnText}>Fusionner</Text>
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.mergeBtn} onPress={confirmMerge}>
+          <Text style={styles.mergeBtnText}>Fusionner</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.ignoreBtn} onPress={() => onDismiss(group)}>
+          <Text style={styles.ignoreBtnText}>Ignorer</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -88,13 +104,20 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontWeight: '600', color: '#1a1a2e', marginBottom: 6 },
   member: { fontSize: 15, color: '#333', marginVertical: 1 },
   why: { fontSize: 12, color: '#3A6EA5', marginTop: 6 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   mergeBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
     backgroundColor: '#3A6EA5',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   mergeBtnText: { color: '#fff', fontWeight: '600' },
+  ignoreBtn: {
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  ignoreBtnText: { color: '#555', fontWeight: '600' },
 });

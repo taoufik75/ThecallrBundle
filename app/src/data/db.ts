@@ -5,8 +5,10 @@ import {
   type Contact,
   type PhoneLabel,
   type PhoneStatus,
+  type RawContact,
   type Sphere,
 } from 'contxt-domain';
+import { rawContactFromJson, rawContactToJson } from './serialize';
 
 /**
  * Persistance locale des contacts unifiés via expo-sqlite. Source de vérité
@@ -44,7 +46,59 @@ export async function initDb(): Promise<void> {
       last_verified_at INTEGER,
       FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS raw_contacts (
+      source_id TEXT PRIMARY KEY,
+      json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS decisions (
+      key TEXT PRIMARY KEY,
+      json TEXT NOT NULL
+    );
   `);
+}
+
+// --- Fiches brutes importées (matière première de l'unification) ---
+
+/** Remplace le cache des fiches brutes importées. */
+export async function saveRaws(raws: readonly RawContact[]): Promise<void> {
+  const d = await db();
+  await d.withTransactionAsync(async () => {
+    await d.execAsync('DELETE FROM raw_contacts;');
+    for (const r of raws) {
+      await d.runAsync(
+        'INSERT INTO raw_contacts (source_id, json) VALUES (?, ?)',
+        r.sourceId,
+        rawContactToJson(r),
+      );
+    }
+  });
+}
+
+export async function loadRaws(): Promise<RawContact[]> {
+  const d = await db();
+  const rows = await d.getAllAsync<{ json: string }>('SELECT json FROM raw_contacts');
+  return rows.map((r) => rawContactFromJson(r.json));
+}
+
+// --- Décisions de l'utilisateur (fusions manuelles, groupes ignorés) ---
+
+/** Lit une décision stockée (tableau de groupes de sourceIds), [] par défaut. */
+export async function loadDecision(key: string): Promise<string[][]> {
+  const d = await db();
+  const row = await d.getFirstAsync<{ json: string }>(
+    'SELECT json FROM decisions WHERE key = ?',
+    key,
+  );
+  return row ? (JSON.parse(row.json) as string[][]) : [];
+}
+
+export async function saveDecision(key: string, value: string[][]): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    'INSERT OR REPLACE INTO decisions (key, json) VALUES (?, ?)',
+    key,
+    JSON.stringify(value),
+  );
 }
 
 /** Remplace intégralement les contacts stockés (import idempotent au MVP). */

@@ -7,10 +7,19 @@ import {
   type Suggestion,
 } from 'contxt-domain';
 import { importDeviceContacts, readUpcomingEvents } from './contactsSource';
-import { initDb, loadContacts, saveContacts } from './db';
+import {
+  initDb,
+  loadDecision,
+  loadRaws,
+  saveDecision,
+  saveRaws,
+} from './db';
 import { buildSampleSnapshot } from './sampleSnapshot';
 
 const engine = new ContextEngine();
+
+const KEY_MERGES = 'manualMerges';
+const KEY_DISMISSED = 'dismissed';
 
 export interface NowData {
   readonly suggestions: Suggestion[];
@@ -21,48 +30,60 @@ export interface NowData {
 
 /**
  * Charge les données de l'écran « Maintenant » :
- * 1. ouvre la base ; s'il y a déjà des contacts, les utilise ;
- * 2. sinon importe le carnet natif, unifie (dedupe), persiste ;
- * 3. lit l'agenda pour contextualiser ;
- * 4. classe via le moteur.
- * Repli systématique sur la démo en cas de permission refusée ou d'erreur, pour
- * que l'app montre toujours quelque chose (ex. dans Expo Go sans autorisation).
+ * 1. ouvre la base ; importe le carnet natif au premier lancement et met les
+ *    fiches brutes en cache ;
+ * 2. relit les décisions de l'utilisateur (fusions confirmées, groupes ignorés) ;
+ * 3. unifie (dedupe + décisions) → contacts + doublons à revoir ;
+ * 4. lit l'agenda et classe via le moteur.
+ * Repli sur la démo en cas de permission refusée ou d'erreur.
  */
 export async function loadNowData(): Promise<NowData> {
   try {
     await initDb();
-    let contacts = await loadContacts();
-    let reviewSuggestions: MergeGroup[] = [];
 
-    if (contacts.length === 0) {
-      const raws = await importDeviceContacts();
-      if (raws.length > 0) {
-        const unified = unifyContacts(raws);
-        contacts = unified.contacts;
-        reviewSuggestions = unified.reviewSuggestions;
-        await saveContacts(contacts);
-      }
+    let raws = await loadRaws();
+    if (raws.length === 0) {
+      raws = await importDeviceContacts();
+      if (raws.length > 0) await saveRaws(raws);
     }
+    if (raws.length === 0) return sampleData();
 
-    if (contacts.length === 0) {
-      return sampleData();
-    }
+    const [manualMerges, dismissed] = await Promise.all([
+      loadDecision(KEY_MERGES),
+      loadDecision(KEY_DISMISSED),
+    ]);
+
+    const unified = unifyContacts(raws, { manualMerges, dismissed });
 
     const events = await readUpcomingEvents(new Map());
     const snapshot: ContextSnapshot = {
       now: new Date(),
-      contacts,
+      contacts: unified.contacts,
       upcomingEvents: events,
       history: [],
     };
     return {
       suggestions: engine.rank(snapshot),
-      reviewSuggestions,
+      reviewSuggestions: unified.reviewSuggestions,
       usingSample: false,
     };
   } catch {
     return sampleData();
   }
+}
+
+/** Confirme la fusion d'un groupe (persiste la décision). */
+export async function confirmMerge(sourceIds: readonly string[]): Promise<void> {
+  const merges = await loadDecision(KEY_MERGES);
+  merges.push([...sourceIds]);
+  await saveDecision(KEY_MERGES, merges);
+}
+
+/** Ignore un groupe de doublons (ne sera plus proposé). */
+export async function dismissGroup(sourceIds: readonly string[]): Promise<void> {
+  const dismissed = await loadDecision(KEY_DISMISSED);
+  dismissed.push([...sourceIds]);
+  await saveDecision(KEY_DISMISSED, dismissed);
 }
 
 function sampleData(): NowData {
@@ -79,8 +100,14 @@ interface HookState {
   readonly data: NowData | null;
 }
 
-/** Hook React : charge les données au montage et expose un rechargement. */
-export function useNowData(): HookState & { reload: () => void } {
+export interface NowDataApi extends HookState {
+  reload: () => void;
+  merge: (group: MergeGroup) => void;
+  ignore: (group: MergeGroup) => void;
+}
+
+/** Hook React : charge au montage, et expose fusion/ignore avec rechargement. */
+export function useNowData(): NowDataApi {
   const [state, setState] = useState<HookState>({ loading: true, data: null });
 
   const load = useCallback(() => {
@@ -90,5 +117,19 @@ export function useNowData(): HookState & { reload: () => void } {
 
   useEffect(load, [load]);
 
-  return { ...state, reload: load };
+  const merge = useCallback(
+    (group: MergeGroup) => {
+      void confirmMerge(group.members.map((m) => m.sourceId)).then(load);
+    },
+    [load],
+  );
+
+  const ignore = useCallback(
+    (group: MergeGroup) => {
+      void dismissGroup(group.members.map((m) => m.sourceId)).then(load);
+    },
+    [load],
+  );
+
+  return { ...state, reload: load, merge, ignore };
 }

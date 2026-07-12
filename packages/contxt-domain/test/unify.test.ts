@@ -76,6 +76,36 @@ describe('unifyContacts', () => {
     expect(reviewSuggestions[0]!.confidence).toBe('low');
   });
 
+  it('une fusion manuelle réunit un groupe de confiance basse et le sort de la revue', () => {
+    const raws = [
+      raw({ sourceId: 'a', displayName: 'Jean Dupont', phones: [{ e164: '+33611111111' }] }),
+      raw({ sourceId: 'b', displayName: 'Jean Dupond', phones: [{ e164: '+33622222222' }] }),
+    ];
+    const { contacts, reviewSuggestions } = unifyContacts(raws, {
+      manualMerges: [['a', 'b']],
+    });
+
+    expect(contacts).toHaveLength(1); // fusionnés par décision utilisateur
+    expect(contacts[0]!.phoneNumbers.map((n) => n.e164).sort()).toEqual([
+      '+33611111111',
+      '+33622222222',
+    ]);
+    expect(reviewSuggestions).toHaveLength(0); // plus rien à trancher
+  });
+
+  it('un groupe ignoré ne réapparaît plus en revue mais reste séparé', () => {
+    const raws = [
+      raw({ sourceId: 'a', displayName: 'Jean Dupont' }),
+      raw({ sourceId: 'b', displayName: 'Jean Dupond' }),
+    ];
+    const { contacts, reviewSuggestions } = unifyContacts(raws, {
+      dismissed: [['a', 'b']],
+    });
+
+    expect(contacts).toHaveLength(2); // restent distincts
+    expect(reviewSuggestions).toHaveLength(0); // masqués
+  });
+
   it('laisse passer les fiches uniques telles quelles', () => {
     const { contacts } = unifyContacts([
       raw({ sourceId: 'solo', displayName: 'Alice', phones: [{ e164: '+33611111111' }] }),

@@ -14,50 +14,99 @@ import {
  * Résultat de l'unification d'un lot de fiches brutes.
  * - `contacts` : les contacts unifiés, prêts pour le moteur.
  * - `reviewSuggestions` : groupes de doublons **non** fusionnés automatiquement
- *   (confiance basse), à confirmer par l'utilisateur.
+ *   (confiance basse) et non encore tranchés par l'utilisateur.
  */
 export interface UnifyResult {
   readonly contacts: Contact[];
   readonly reviewSuggestions: MergeGroup[];
 }
 
+export interface UnifyOptions {
+  /** Service de dédup (injectable pour les tests). */
+  readonly dedupe?: DedupeService;
+  /**
+   * Fusions confirmées par l'utilisateur : chaque entrée est un ensemble de
+   * `sourceId` que l'utilisateur a déclarés comme une même personne. Traitées
+   * comme un signal fort (fusion appliquée).
+   */
+  readonly manualMerges?: readonly (readonly string[])[];
+  /**
+   * Groupes que l'utilisateur a choisi d'ignorer : chaque entrée est l'ensemble
+   * des `sourceId` du groupe. Ces groupes ne réapparaissent plus en revue.
+   */
+  readonly dismissed?: readonly (readonly string[])[];
+}
+
 /**
  * Transforme des `RawContact` importés en `Contact` unifiés, en appliquant le
- * `DedupeService` :
- * - les groupes de **confiance haute** (numéro/e-mail partagé) sont fusionnés
- *   automatiquement en une seule fiche ;
- * - les groupes de **confiance basse** (nom proche seulement) ne sont PAS
- *   fusionnés — chaque membre reste un contact, et le groupe est renvoyé pour
- *   revue manuelle.
+ * `DedupeService` et les décisions de l'utilisateur :
+ * - fusion automatique des groupes de **confiance haute** (numéro/e-mail) ;
+ * - fusion des **fusions manuelles** confirmées ;
+ * - les groupes de **confiance basse** restants (ni fusionnés, ni ignorés) sont
+ *   renvoyés pour revue.
  *
- * Déterministe : les identifiants produits dérivent du contenu, pas de l'horloge.
+ * Déterministe : les identifiants dérivent du contenu, jamais de l'horloge.
  */
 export function unifyContacts(
   raws: readonly RawContact[],
-  dedupe: DedupeService = new DedupeService(),
+  options: UnifyOptions = {},
 ): UnifyResult {
+  const dedupe = options.dedupe ?? new DedupeService();
+  const manualMerges = options.manualMerges ?? [];
+  const dismissedKeys = new Set((options.dismissed ?? []).map(keyOf));
+
   const groups = dedupe.findDuplicates(raws);
-  const highGroups = groups.filter((g) => g.confidence === 'high');
-  const reviewSuggestions = groups.filter((g) => g.confidence === 'low');
+  const indexBySource = new Map(raws.map((r, i) => [r.sourceId, i]));
+  const uf = new UnionFind(raws.length);
 
-  const mergedSourceIds = new Set<string>();
-  for (const g of highGroups) {
-    for (const m of g.members) mergedSourceIds.add(m.sourceId);
+  // Signaux forts : fusion automatique.
+  for (const g of groups) {
+    if (g.confidence === 'high') {
+      unionSources(uf, g.members.map((m) => m.sourceId), indexBySource);
+    }
   }
+  // Confirmations manuelles.
+  for (const set of manualMerges) unionSources(uf, set, indexBySource);
 
-  const contacts: Contact[] = [];
-
-  // 1. Un contact fusionné par groupe de confiance haute.
-  for (const g of highGroups) {
-    contacts.push(buildContact(g.members));
+  // Composantes connexes → contacts.
+  const components = new Map<number, number[]>();
+  for (let i = 0; i < raws.length; i++) {
+    const root = uf.find(i);
+    const list = components.get(root);
+    if (list) list.push(i);
+    else components.set(root, [i]);
   }
+  const contacts = [...components.values()].map((idxs) =>
+    buildContact(idxs.map((i) => raws[i]!)),
+  );
 
-  // 2. Un contact par fiche non absorbée dans une fusion automatique.
-  for (const raw of raws) {
-    if (!mergedSourceIds.has(raw.sourceId)) contacts.push(buildContact([raw]));
-  }
+  // Revue : groupes de confiance basse encore séparés et non ignorés.
+  const reviewSuggestions = groups.filter((g) => {
+    if (g.confidence !== 'low') return false;
+    if (dismissedKeys.has(keyOf(g.members.map((m) => m.sourceId)))) return false;
+    const roots = new Set(
+      g.members.map((m) => uf.find(indexBySource.get(m.sourceId)!)),
+    );
+    return roots.size > 1; // pas encore fusionnés
+  });
 
   return { contacts, reviewSuggestions };
+}
+
+/** Clé canonique d'un ensemble de sourceIds (indépendante de l'ordre). */
+function keyOf(sourceIds: readonly string[]): string {
+  return [...sourceIds].sort().join('|');
+}
+
+function unionSources(
+  uf: UnionFind,
+  sourceIds: readonly string[],
+  indexBySource: ReadonlyMap<string, number>,
+): void {
+  const indices = sourceIds
+    .map((s) => indexBySource.get(s))
+    .filter((i): i is number => i !== undefined);
+  for (let k = 1; k < indices.length; k++) uf.union(indices[0]!, indices[k]!);
 }
 
 /** Construit une fiche unifiée à partir d'une ou plusieurs fiches brutes. */
@@ -78,17 +127,15 @@ export function buildContact(members: readonly RawContact[]): Contact {
     }
   }
 
-  return makeContact({
-    id,
-    displayName: named.displayName,
-    phoneNumbers,
-  });
+  return makeContact({ id, displayName: named.displayName, phoneNumbers });
 }
 
 /** Identifiant de contact stable, dérivé des sources triées. */
 function contactIdFor(members: readonly RawContact[]): string {
-  const ids = members.map((m) => `${m.provider}:${m.externalId}`).sort();
-  return ids.join('|');
+  return members
+    .map((m) => `${m.provider}:${m.externalId}`)
+    .sort()
+    .join('|');
 }
 
 function mostComplete(members: readonly RawContact[]): RawContact {
@@ -107,7 +154,9 @@ function completeness(c: RawContact): number {
 }
 
 /** Numéros étiquetés d'une fiche ; retombe sur `phoneE164s` si absents. */
-function labeledPhonesOf(c: RawContact): readonly { e164: string; rawLabel?: string }[] {
+function labeledPhonesOf(
+  c: RawContact,
+): readonly { e164: string; rawLabel?: string }[] {
   if (c.labeledPhones && c.labeledPhones.length > 0) return c.labeledPhones;
   return [...c.phoneE164s].map((e164) => ({ e164 }));
 }
@@ -125,12 +174,33 @@ export function mapRawLabel(rawLabel?: string): {
     return { label: 'mobilePerso', sphere: 'perso' };
   }
   if (/(work|bureau|office|pro|travail|boulot)/.test(l)) {
-    // On ne peut pas distinguer mobile pro d'un fixe pro sans plus d'info :
-    // par défaut fixe bureau, sphère pro.
     return { label: 'fixeBureau', sphere: 'pro' };
   }
   if (/(home|domicile|maison|fixe|landline)/.test(l)) {
     return { label: 'domicile', sphere: 'perso' };
   }
   return { label: 'autre', sphere: 'mixte' };
+}
+
+/** Union-find avec compression de chemin. */
+class UnionFind {
+  private readonly parent: number[];
+
+  constructor(n: number) {
+    this.parent = Array.from({ length: n }, (_, i) => i);
+  }
+
+  find(x: number): number {
+    while (this.parent[x] !== x) {
+      this.parent[x] = this.parent[this.parent[x]!]!;
+      x = this.parent[x]!;
+    }
+    return x;
+  }
+
+  union(a: number, b: number): void {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra !== rb) this.parent[rb] = ra;
+  }
 }

@@ -49,9 +49,9 @@ packages/contxt-domain/    # cœur métier, TS pur, testé
     models.ts              # Contact, PhoneNumber, Availability, RawContact, ...
     contextEngine.ts       # scoring contextuel
     dedupeService.ts       # détection/fusion des doublons
-    unify.ts               # pipeline : RawContact[] → Contact[] (applique le dedupe)
+    unify.ts               # pipeline : RawContact[] → Contact[] (dedupe + décisions)
     index.ts
-  test/                    # 26 tests (scénarios + dédup + unification)
+  test/                    # 28 tests (scénarios + dédup + unification)
 app/                       # projet Expo / React Native
   App.tsx                  # onglets Maintenant / Doublons
   metro.config.js          # résolution monorepo
@@ -59,9 +59,10 @@ app/                       # projet Expo / React Native
     data/
       phone.ts             # normalisation E.164 (libphonenumber-js)
       mappers.ts           # natif → RawContact / CalendarEvent (purs, testés)
+      serialize.ts         # (dé)sérialisation des fiches brutes (pure, testée)
       contactsSource.ts    # expo-contacts + expo-calendar
-      db.ts                # persistance expo-sqlite
-      useNowData.ts        # orchestration : import → unifie → persiste → classe
+      db.ts                # expo-sqlite : fiches brutes + décisions (fusions/ignorés)
+      useNowData.ts        # orchestration : import → unifie → décisions → classe
       sampleSnapshot.ts    # repli de démo
     ui/
       NowScreen.tsx        # écran « Maintenant »

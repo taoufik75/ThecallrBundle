@@ -8,7 +8,7 @@ import { DedupeScreen } from './src/ui/DedupeScreen';
 type Tab = 'now' | 'dedupe';
 
 export default function App() {
-  const { data, loading } = useNowData();
+  const { data, loading, merge, ignore } = useNowData();
   const [tab, setTab] = useState<Tab>('now');
   const dupCount = data?.reviewSuggestions.length ?? 0;
 
@@ -29,7 +29,11 @@ export default function App() {
       {tab === 'now' ? (
         <NowScreen data={data} loading={loading} />
       ) : (
-        <DedupeScreen groups={data?.reviewSuggestions ?? []} />
+        <DedupeScreen
+          groups={data?.reviewSuggestions ?? []}
+          onMerge={merge}
+          onDismiss={ignore}
+        />
       )}
     </SafeAreaView>
   );
