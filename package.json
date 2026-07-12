@@ -8,7 +8,7 @@
     "app"
   ],
   "scripts": {
-    "test": "npm run test --workspace packages/contxt-domain",
-    "typecheck": "npm run typecheck --workspace packages/contxt-domain"
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }

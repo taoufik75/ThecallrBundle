@@ -7,21 +7,28 @@
 ## Structure du repo (monorepo npm workspaces)
 
 ```
-packages/contxt-domain/    # cœur métier : modèles + moteur + dédup (TS pur, testé)
-  src/                      #   ContextEngine, DedupeService, models
-  test/                     #   18 tests : scénarios de spec + propriétés
+packages/contxt-domain/    # cœur métier : TS pur, testé, sans dépendance UI
+  src/                      #   ContextEngine, DedupeService, unify (pipeline), models
+  test/                     #   26 tests : scénarios de spec + dédup + unification
 app/                        # application Expo / React Native (iOS + Android)
+  src/data/                 #   import expo-contacts/calendar, normalisation E.164,
+                            #   unification, persistance expo-sqlite, hook de chargement
   src/ui/NowScreen.tsx      #   écran « Maintenant »
+  src/ui/DedupeScreen.tsx   #   revue des doublons à fusionner
 docs/                       # documentation produit & technique
 ```
 
-### Lancer les tests du moteur (sans Expo)
+### Lancer les tests (sans device)
 
 ```bash
 npm install
-npm test        # 18 tests (contextEngine + dedupeService)
+npm test          # 32 tests : 26 (domaine) + 6 (mappers data de l'app)
 npm run typecheck
 ```
+
+Le cœur (`contxt-domain`) et les mappers purs de la couche data sont testés en
+Node ; les adaptateurs natifs (contacts/agenda/SQLite) et l'UI sont validés par
+le typecheck et le bundle Metro (`npx expo export`).
 
 ### Lancer l'app
 

@@ -106,6 +106,12 @@ export interface Suggestion {
   readonly reasons: readonly string[];
 }
 
+/** Numéro brut importé : E.164 + étiquette d'origine (ex. "mobile", "work"). */
+export interface RawPhone {
+  readonly e164: string;
+  readonly rawLabel?: string;
+}
+
 /** Fiche brute importée, avant unification (matière première du dedupe). */
 export interface RawContact {
   readonly sourceId: string;
@@ -116,7 +122,13 @@ export interface RawContact {
   readonly givenName?: string;
   readonly familyName?: string;
   readonly emails: ReadonlySet<string>;
+  /** Numéros E.164 (clé de rapprochement du dedupe). */
   readonly phoneE164s: ReadonlySet<string>;
+  /**
+   * Numéros avec leur étiquette d'origine, pour typer les `PhoneNumber` lors de
+   * l'unification. Optionnel : si absent, on retombe sur `phoneE164s`.
+   */
+  readonly labeledPhones?: readonly RawPhone[];
 }
 
 /** Signal ayant motivé un rapprochement. */

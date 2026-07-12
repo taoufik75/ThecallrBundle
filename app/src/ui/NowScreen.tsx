@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   StyleSheet,
@@ -7,14 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {
-  ContextEngine,
-  type PhoneLabel,
-  type Suggestion,
-} from 'contxt-domain';
-import { buildSampleSnapshot } from '../data/sampleSnapshot';
-
-const engine = new ContextEngine();
+import { type PhoneLabel, type Suggestion } from 'contxt-domain';
+import type { NowData } from '../data/useNowData';
+import { styles as shared } from './styles';
 
 const LABEL_FR: Record<PhoneLabel, string> = {
   mobilePerso: 'mobile perso',
@@ -28,37 +23,48 @@ const LABEL_FR: Record<PhoneLabel, string> = {
  * Écran signature « Maintenant » : la liste des contacts/numéros suggérés par
  * le moteur selon le contexte courant. Un appui appelle le bon numéro.
  */
-export function NowScreen(): React.JSX.Element {
-  // MVP : instantané de démonstration + horloge locale. À remplacer par la
-  // couche data réelle (contacts + agenda) via un store/contexte.
-  const suggestions = useMemo(
-    () => engine.rank(buildSampleSnapshot(new Date())),
-    [],
-  );
+export function NowScreen({
+  data,
+  loading,
+}: {
+  data: NowData | null;
+  loading: boolean;
+}): React.JSX.Element {
+  if (loading || !data) {
+    return (
+      <View style={[shared.screen, styles.centered]}>
+        <ActivityIndicator size="large" color="#3A6EA5" />
+        <Text style={styles.loadingText}>Analyse du contexte…</Text>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Maintenant</Text>
+    <View style={shared.screen}>
+      {data.usingSample && (
+        <Text style={styles.sampleBanner}>
+          Données de démonstration — autorisez l'accès aux contacts pour vos vrais contacts.
+        </Text>
+      )}
       <FlatList
-        data={suggestions}
+        data={data.suggestions}
         keyExtractor={(s) => s.contact.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => <SuggestionRow suggestion={item} />}
+        ListEmptyComponent={
+          <Text style={styles.empty}>Aucune suggestion pour le moment.</Text>
+        }
       />
     </View>
   );
 }
 
-function SuggestionRow({
-  suggestion,
-}: {
-  suggestion: Suggestion;
-}): React.JSX.Element {
+function SuggestionRow({ suggestion }: { suggestion: Suggestion }): React.JSX.Element {
   const { contact, bestNumber, reasons } = suggestion;
 
   const call = () => {
-    // Déclenche l'appel natif. Un vrai enregistrement CallEvent (pour
-    // l'apprentissage, phase 2) sera ajouté avec la couche data.
+    // Déclenche l'appel natif. Un enregistrement CallEvent (apprentissage,
+    // phase 2) sera ajouté avec l'historique.
     void Linking.openURL(`tel:${bestNumber.e164}`);
   };
 
@@ -92,14 +98,16 @@ function initials(name: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 64 },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
+  centered: { alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: 12, color: '#555' },
+  sampleBanner: {
+    backgroundColor: '#FFF4E5',
+    color: '#8a5a00',
+    fontSize: 12,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    color: '#1a1a2e',
+    paddingVertical: 8,
   },
+  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
   separator: { height: 1, backgroundColor: '#eee', marginLeft: 76 },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
   avatar: {
