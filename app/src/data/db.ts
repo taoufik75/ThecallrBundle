@@ -3,6 +3,7 @@ import {
   makeContact,
   makePhoneNumber,
   type Contact,
+  type ContactOverrides,
   type PhoneLabel,
   type PhoneStatus,
   type RawContact,
@@ -97,6 +98,28 @@ export async function saveDecision(key: string, value: string[][]): Promise<void
   await d.runAsync(
     'INSERT OR REPLACE INTO decisions (key, json) VALUES (?, ?)',
     key,
+    JSON.stringify(value),
+  );
+}
+
+// --- Éditions de l'utilisateur (overrides de contacts / numéros) ---
+
+const OVERRIDES_KEY = 'overrides';
+
+export async function loadOverrides(): Promise<ContactOverrides> {
+  const d = await db();
+  const row = await d.getFirstAsync<{ json: string }>(
+    'SELECT json FROM decisions WHERE key = ?',
+    OVERRIDES_KEY,
+  );
+  return row ? (JSON.parse(row.json) as ContactOverrides) : {};
+}
+
+export async function saveOverrides(value: ContactOverrides): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    'INSERT OR REPLACE INTO decisions (key, json) VALUES (?, ?)',
+    OVERRIDES_KEY,
     JSON.stringify(value),
   );
 }

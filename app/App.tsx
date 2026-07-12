@@ -4,13 +4,34 @@ import { StatusBar } from 'expo-status-bar';
 import { useNowData } from './src/data/useNowData';
 import { NowScreen } from './src/ui/NowScreen';
 import { DedupeScreen } from './src/ui/DedupeScreen';
+import { ContactScreen } from './src/ui/ContactScreen';
 
 type Tab = 'now' | 'dedupe';
 
 export default function App() {
-  const { data, loading, merge, ignore } = useNowData();
+  const { data, loading, merge, ignore, updateContact, updatePhone } = useNowData();
   const [tab, setTab] = useState<Tab>('now');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const dupCount = data?.reviewSuggestions.length ?? 0;
+
+  const selected = selectedId
+    ? data?.contacts.find((c) => c.id === selectedId) ?? null
+    : null;
+
+  // Fiche contact en plein écran par-dessus le reste.
+  if (selected) {
+    return (
+      <SafeAreaView style={styles.root}>
+        <StatusBar style="dark" />
+        <ContactScreen
+          contact={selected}
+          onBack={() => setSelectedId(null)}
+          onEditContact={updateContact}
+          onEditPhone={updatePhone}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.root}>
@@ -27,7 +48,7 @@ export default function App() {
       </View>
 
       {tab === 'now' ? (
-        <NowScreen data={data} loading={loading} />
+        <NowScreen data={data} loading={loading} onOpen={setSelectedId} />
       ) : (
         <DedupeScreen
           groups={data?.reviewSuggestions ?? []}

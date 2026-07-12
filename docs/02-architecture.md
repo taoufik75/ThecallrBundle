@@ -50,8 +50,9 @@ packages/contxt-domain/    # cœur métier, TS pur, testé
     contextEngine.ts       # scoring contextuel
     dedupeService.ts       # détection/fusion des doublons
     unify.ts               # pipeline : RawContact[] → Contact[] (dedupe + décisions)
+    overrides.ts           # éditions utilisateur appliquées aux contacts
     index.ts
-  test/                    # 28 tests (scénarios + dédup + unification)
+  test/                    # 32 tests (scénarios + dédup + unification + overrides)
 app/                       # projet Expo / React Native
   App.tsx                  # onglets Maintenant / Doublons
   metro.config.js          # résolution monorepo
@@ -67,6 +68,7 @@ app/                       # projet Expo / React Native
     ui/
       NowScreen.tsx        # écran « Maintenant »
       DedupeScreen.tsx     # revue des doublons
+      ContactScreen.tsx    # fiche contact éditable (type, sphère, favori, périmé)
 docs/                      # cette documentation
 ```
 

@@ -26,9 +26,11 @@ const LABEL_FR: Record<PhoneLabel, string> = {
 export function NowScreen({
   data,
   loading,
+  onOpen,
 }: {
   data: NowData | null;
   loading: boolean;
+  onOpen: (contactId: string) => void;
 }): React.JSX.Element {
   if (loading || !data) {
     return (
@@ -50,7 +52,7 @@ export function NowScreen({
         data={data.suggestions}
         keyExtractor={(s) => s.contact.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <SuggestionRow suggestion={item} />}
+        renderItem={({ item }) => <SuggestionRow suggestion={item} onOpen={onOpen} />}
         ListEmptyComponent={
           <Text style={styles.empty}>Aucune suggestion pour le moment.</Text>
         }
@@ -59,7 +61,13 @@ export function NowScreen({
   );
 }
 
-function SuggestionRow({ suggestion }: { suggestion: Suggestion }): React.JSX.Element {
+function SuggestionRow({
+  suggestion,
+  onOpen,
+}: {
+  suggestion: Suggestion;
+  onOpen: (contactId: string) => void;
+}): React.JSX.Element {
   const { contact, bestNumber, reasons } = suggestion;
 
   const call = () => {
@@ -69,7 +77,11 @@ function SuggestionRow({ suggestion }: { suggestion: Suggestion }): React.JSX.El
   };
 
   return (
-    <TouchableOpacity style={styles.row} onPress={call} accessibilityRole="button">
+    <TouchableOpacity
+      style={styles.row}
+      onPress={() => onOpen(contact.id)}
+      accessibilityRole="button"
+    >
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{initials(contact.displayName)}</Text>
       </View>
@@ -85,7 +97,9 @@ function SuggestionRow({ suggestion }: { suggestion: Suggestion }): React.JSX.El
           <Text style={styles.reasons}>{reasons.join(' · ')}</Text>
         )}
       </View>
-      <Text style={styles.callIcon}>📞</Text>
+      <TouchableOpacity onPress={call} accessibilityRole="button" accessibilityLabel="Appeler">
+        <Text style={styles.callIcon}>📞</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
