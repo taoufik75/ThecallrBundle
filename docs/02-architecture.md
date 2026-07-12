@@ -4,66 +4,59 @@
 
 | Décision | Choix retenu (MVP) | Pourquoi |
 |---|---|---|
-| Plateforme mobile | **Flutter** (Dart) | Un seul codebase iOS+Android, hot reload, accès natif aux contacts/agenda via plugins matures |
-| Persistance locale | **SQLite via Drift** | Requêtes typées, migrations, parfait pour un modèle relationnel (contacts ↔ numéros ↔ sources) |
-| État / architecture app | **Riverpod** + couche domaine séparée | Testable, découple le moteur de contexte de l'UI |
+| Plateforme mobile | **React Native + Expo** (TypeScript) | Un seul codebase iOS+Android, fast refresh, écosystème JS, `expo-contacts` / `expo-calendar` / `expo-sqlite` clés en main |
+| Persistance locale | **SQLite via `expo-sqlite`** (+ Drizzle) | Requêtes typées, migrations, modèle relationnel (contacts ↔ numéros ↔ sources) |
+| État / architecture app | **Zustand** (ou Context) + couche domaine séparée | Léger, testable, découple le moteur de contexte de l'UI |
 | Backend | **Aucun (MVP)** | Local-first, privacy par défaut, pas d'infra à opérer |
-| Sources contacts | Contacts natifs + **Google People API** (OAuth) | Couvre la majorité des cas ; CardDAV/iCloud en phase 2 |
-| Agenda | Lecture seule du calendrier de l'appareil | Alimente le moteur sans droits d'écriture |
+| Sources contacts | `expo-contacts` (carnet natif) + **Google People API** (OAuth) | Couvre la majorité des cas ; CardDAV/iCloud en phase 2 |
+| Agenda | `expo-calendar` en lecture seule | Alimente le moteur sans droits d'écriture |
 
-> Ces choix sont des recommandations de départ. React Native ou natif restent défendables ; Flutter est retenu pour la vitesse de prototypage d'un MVP.
+> Choix de départ. Le cœur métier (`contxt-domain`) est en **TypeScript pur, sans dépendance UI** : réutilisable tel quel par l'app, un futur backend Node, ou du tooling.
 
 ## Découpage en couches
 
 ```
 ┌─────────────────────────────────────────────┐
-│  UI (Flutter widgets)                         │
+│  UI (React Native / Expo)                     │
 │  - Écran « Maintenant »                        │
 │  - Fiche contact / édition                     │
 │  - Assistant de fusion des doublons            │
 └───────────────┬───────────────────────────────┘
-                │ (Riverpod providers)
+                │ (store Zustand / hooks)
 ┌───────────────▼───────────────────────────────┐
-│  Domaine (Dart pur, testable, zéro Flutter)    │
+│  Domaine — packages/contxt-domain (TS pur)     │
 │  - ContextEngine : scoring des numéros          │
 │  - DedupeService : détection/fusion doublons    │
-│  - SuggestionService : compose l'écran Maintenant│
+│  - models : types unifiés                        │
 └───────────────┬───────────────────────────────┘
                 │
 ┌───────────────▼───────────────────────────────┐
-│  Data                                          │
+│  Data (app)                                     │
 │  - Repositories (contacts, numéros, appels)     │
-│  - Drift (SQLite) : source de vérité locale     │
-│  - Importers : NativeContacts, GooglePeople     │
-│  - CalendarReader : événements à venir           │
+│  - expo-sqlite (+ Drizzle) : vérité locale      │
+│  - Importers : expo-contacts, Google People     │
+│  - CalendarReader : expo-calendar               │
 └─────────────────────────────────────────────────┘
 ```
 
-Règle d'or : **le `ContextEngine` est du Dart pur**, sans dépendance Flutter ni I/O. Il prend en entrée un instantané (contacts + heure + événements + historique) et retourne une liste ordonnée. Ça le rend testable au cordeau (cf. les scénarios de `04-context-engine.md`).
+Règle d'or : **le `ContextEngine` est du TypeScript pur**, sans dépendance UI ni I/O. Il prend un instantané (contacts + heure + événements + historique) et retourne une liste ordonnée. Ça le rend testable au cordeau (cf. les scénarios de `04-context-engine.md`).
 
-## Arborescence cible (phase 1)
+## Arborescence (phase 1)
 
 ```
-app/                       # projet Flutter
-  lib/
-    main.dart
-    domain/
-      context_engine.dart
-      dedupe_service.dart
-      suggestion_service.dart
-      models/              # Contact, PhoneNumber, CallEvent, ...
-    data/
-      db/                  # Drift : tables + DAO
-      importers/
-      calendar/
-      repositories/
-    ui/
-      now/                 # écran « Maintenant »
-      contact/
-      dedupe/
-    app.dart
-  test/
-    domain/                # tests du moteur, scénarisés
+packages/contxt-domain/    # cœur métier, TS pur, testé
+  src/
+    models.ts              # Contact, PhoneNumber, Availability, RawContact, ...
+    contextEngine.ts       # scoring contextuel
+    dedupeService.ts       # détection/fusion des doublons
+    index.ts
+  test/                    # 18 tests (scénarios + propriétés)
+app/                       # projet Expo / React Native
+  App.tsx
+  metro.config.js          # résolution monorepo
+  src/
+    data/sampleSnapshot.ts # données de démo (temporaire)
+    ui/NowScreen.tsx        # écran « Maintenant »
 docs/                      # cette documentation
 ```
 
@@ -76,6 +69,6 @@ docs/                      # cette documentation
 
 ## Points d'attention techniques
 
-- **Normalisation des numéros** : E.164 systématique (via `libphonenumber`) — indispensable pour dédupliquer et comparer.
+- **Normalisation des numéros** : E.164 systématique (via `libphonenumber-js`) — indispensable pour dédupliquer et comparer. La couche d'import normalise avant de peupler `RawContact.phoneE164s`.
 - **Idempotence de l'import** : réimporter ne doit pas recréer de doublons (clé de correspondance stable par source).
 - **Fusion non destructive** : garder la trace des fiches sources d'une fusion pour pouvoir annuler.

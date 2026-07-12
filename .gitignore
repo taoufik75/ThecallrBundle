@@ -1,17 +1,30 @@
-# Dart / Flutter
-.dart_tool/
-.packages
+# Dépendances
+node_modules/
+
+# Builds / bundles
+dist/
 build/
-.flutter-plugins
-.flutter-plugins-dependencies
-# packages purs : lock régénéré, non versionné au MVP
-pubspec.lock
-*.iml
+app/dist/
+web-build/
+
+# Expo
+.expo/
+.expo-shared/
+*.orig.*
+
+# Natif (généré)
+android/
+ios/
+
+# Logs & divers
+npm-debug.*
+*.log
+.DS_Store
 
 # IDE
 .idea/
 .vscode/
 *.swp
 
-# OS
-.DS_Store
+# Env
+.env*.local

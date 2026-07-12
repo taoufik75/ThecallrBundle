@@ -18,7 +18,7 @@ snapshot = {
 }
 ```
 
-Le moteur est **du Dart pur, déterministe, sans I/O** : mêmes entrées → même sortie. C'est ce qui le rend testable par scénarios (voir plus bas).
+Le moteur est **du TypeScript pur, déterministe, sans I/O** : mêmes entrées → même sortie. C'est ce qui le rend testable par scénarios (voir plus bas).
 
 ## Approche : règles explicites d'abord, apprentissage ensuite
 
