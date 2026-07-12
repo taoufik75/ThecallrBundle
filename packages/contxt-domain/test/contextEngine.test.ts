@@ -153,7 +153,7 @@ describe('ContextEngine.rank — scénarios de spécification', () => {
   });
 
   it('5. Entre un créneau à éviter et un créneau préféré, le préféré gagne', () => {
-    const windowMon = new Set([1]); // lundi (ISO)
+    const windowMon = [1]; // lundi (ISO)
     const avoid: Availability = {
       daysOfWeek: windowMon,
       startMinute: 9 * 60,

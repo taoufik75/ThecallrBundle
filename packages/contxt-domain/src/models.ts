@@ -39,7 +39,8 @@ export type ContactProvider = 'device' | 'google' | 'carddav';
  * Bornes en minutes depuis minuit (540 = 09:00).
  */
 export interface Availability {
-  readonly daysOfWeek: ReadonlySet<number>;
+  /** Jours ISO concernés (1 = lundi … 7 = dimanche). Tableau (JSON-sérialisable). */
+  readonly daysOfWeek: readonly number[];
   readonly startMinute: number;
   readonly endMinute: number;
   readonly kind: AvailabilityKind;
@@ -187,7 +188,7 @@ export function proposableNumbers(contact: Contact): PhoneNumber[] {
 /** Vrai si `when` tombe dans la fenêtre (jour ISO 1-7 + plage horaire). */
 export function availabilityMatches(a: Availability, when: Date): boolean {
   const isoDay = ((when.getDay() + 6) % 7) + 1; // JS 0=dim → ISO 1=lun..7=dim
-  if (!a.daysOfWeek.has(isoDay)) return false;
+  if (!a.daysOfWeek.includes(isoDay)) return false;
   const minutes = when.getHours() * 60 + when.getMinutes();
   return minutes >= a.startMinute && minutes < a.endMinute;
 }

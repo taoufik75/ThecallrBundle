@@ -1,4 +1,10 @@
-import type { Contact, PhoneLabel, PhoneStatus, Sphere } from './models';
+import type {
+  Availability,
+  Contact,
+  PhoneLabel,
+  PhoneStatus,
+  Sphere,
+} from './models';
 
 /**
  * Édition utilisateur d'un numéro (tous les champs sont optionnels : seuls les
@@ -9,6 +15,8 @@ export interface PhoneOverride {
   readonly sphere?: Sphere;
   readonly status?: PhoneStatus;
   readonly priority?: number;
+  /** Fenêtres de joignabilité définies par l'utilisateur (remplacent l'existant). */
+  readonly availabilities?: readonly Availability[];
 }
 
 /** Édition utilisateur d'un contact. */
@@ -46,6 +54,7 @@ export function applyOverrides(
         sphere: po.sphere ?? p.sphere,
         status: po.status ?? p.status,
         priority: po.priority ?? p.priority,
+        availabilities: po.availabilities ?? p.availabilities,
       };
     });
 

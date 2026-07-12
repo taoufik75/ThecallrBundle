@@ -55,6 +55,24 @@ describe('applyOverrides', () => {
     expect(n.label).toBe('autre'); // inchangé
   });
 
+  it('définit des fenêtres de disponibilité (alimente le timeFit du moteur)', () => {
+    const overrides: ContactOverrides = {
+      c1: {
+        phones: {
+          '+33612345678': {
+            availabilities: [
+              { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 540, endMinute: 1080, kind: 'preferred' },
+            ],
+          },
+        },
+      },
+    };
+    const [c] = applyOverrides([contact()], overrides);
+    const n = c!.phoneNumbers[0]!;
+    expect(n.availabilities).toHaveLength(1);
+    expect(n.availabilities[0]!.kind).toBe('preferred');
+  });
+
   it('ne touche pas un contact sans override', () => {
     const original = contact();
     const [c] = applyOverrides([original], {});

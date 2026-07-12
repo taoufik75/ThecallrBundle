@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import {
+  type Availability,
   type Contact,
   type ContactOverride,
   type PhoneLabel,
@@ -16,6 +17,35 @@ import {
   type Sphere,
 } from 'contxt-domain';
 import { styles as shared } from './styles';
+
+/** Fenêtres de disponibilité prêtes à l'emploi (toutes « préférées »). */
+const AVAILABILITY_PRESETS: { key: string; fr: string; window: Availability }[] = [
+  {
+    key: 'bureau',
+    fr: 'Bureau (lun–ven 9h–18h)',
+    window: { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 540, endMinute: 1080, kind: 'preferred' },
+  },
+  {
+    key: 'soiree',
+    fr: 'Soirée (tous les jours 18h–22h)',
+    window: { daysOfWeek: [1, 2, 3, 4, 5, 6, 7], startMinute: 1080, endMinute: 1320, kind: 'preferred' },
+  },
+  {
+    key: 'weekend',
+    fr: 'Week-end (sam–dim 10h–20h)',
+    window: { daysOfWeek: [6, 7], startMinute: 600, endMinute: 1200, kind: 'preferred' },
+  },
+];
+
+function sameWindow(a: Availability, b: Availability): boolean {
+  return (
+    a.kind === b.kind &&
+    a.startMinute === b.startMinute &&
+    a.endMinute === b.endMinute &&
+    a.daysOfWeek.length === b.daysOfWeek.length &&
+    [...a.daysOfWeek].sort().join(',') === [...b.daysOfWeek].sort().join(',')
+  );
+}
 
 const LABELS: { key: PhoneLabel; fr: string }[] = [
   { key: 'mobilePerso', fr: 'Mobile perso' },
@@ -127,6 +157,26 @@ function PhoneCard({
             onPress={() => edit({ sphere: s.key })}
           />
         ))}
+      </View>
+
+      <Text style={styles.fieldLabel}>Disponibilité</Text>
+      <View style={styles.chips}>
+        {AVAILABILITY_PRESETS.map((preset) => {
+          const active = phone.availabilities.some((a) => sameWindow(a, preset.window));
+          return (
+            <Chip
+              key={preset.key}
+              label={preset.fr}
+              active={active}
+              onPress={() => {
+                const next = active
+                  ? phone.availabilities.filter((a) => !sameWindow(a, preset.window))
+                  : [...phone.availabilities, preset.window];
+                edit({ availabilities: next });
+              }}
+            />
+          );
+        })}
       </View>
 
       <View style={styles.actionsRow}>
