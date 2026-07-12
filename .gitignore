@@ -1,0 +1,17 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+# packages purs : lock régénéré, non versionné au MVP
+pubspec.lock
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store

@@ -1,0 +1,25 @@
+name: contxt_app
+description: >-
+  Application mobile Contxt (Flutter). Consomme le moteur de suggestion du
+  package contxt_domain. Local-first, iOS + Android.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Cœur métier : modèles + moteur contextuel (Dart pur, testé à part).
+  contxt_domain:
+    path: ../packages/contxt_domain
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

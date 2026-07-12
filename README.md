@@ -2,7 +2,33 @@
 
 > Application mobile qui unifie tes carnets d'adresses, garde tes numéros à jour, et te propose le bon contact au bon moment selon le contexte (heure, agenda, habitudes).
 
-**Statut : phase 0 — cadrage.** Ce repo contient pour l'instant la fondation produit et technique. Le code applicatif arrive une fois les choix de la phase 0 validés.
+**Statut : phase 1 démarrée.** Le cœur métier (moteur de suggestion contextuelle) est implémenté en Dart pur et **couvert par des tests exécutables**. Le scaffold de l'app Flutter consomme ce moteur.
+
+## Structure du repo
+
+```
+packages/contxt_domain/   # cœur métier : modèles + moteur de contexte (Dart pur, testé)
+  lib/                     #   ContextEngine, Contact, PhoneNumber, Availability, ...
+  test/                    #   les 5 scénarios de spec + propriétés du moteur
+  example/now_demo.dart    #   démonstrateur console de l'écran « Maintenant »
+app/                       # application Flutter (iOS + Android) — scaffold phase 1
+docs/                      # documentation produit & technique
+```
+
+### Lancer les tests du moteur (sans Flutter)
+
+```bash
+cd packages/contxt_domain
+dart pub get
+dart test                       # 9 tests, dont les 5 scénarios de la doc 04
+dart run example/now_demo.dart  # aperçu console de l'écran « Maintenant »
+```
+
+### Lancer l'app (nécessite Flutter)
+
+```bash
+cd app && flutter pub get && flutter run
+```
 
 ## Le problème
 

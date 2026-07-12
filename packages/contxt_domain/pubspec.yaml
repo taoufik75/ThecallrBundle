@@ -1,0 +1,13 @@
+name: contxt_domain
+description: >-
+  Cœur métier de Contxt : modèles unifiés (contacts, numéros, dispo) et
+  moteur de suggestion contextuelle. Dart pur, sans dépendance Flutter, afin
+  d'être totalement testable.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+dev_dependencies:
+  test: ^1.25.0
