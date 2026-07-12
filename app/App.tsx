@@ -9,7 +9,8 @@ import { ContactScreen } from './src/ui/ContactScreen';
 type Tab = 'now' | 'dedupe';
 
 export default function App() {
-  const { data, loading, merge, ignore, updateContact, updatePhone } = useNowData();
+  const { data, loading, merge, ignore, updateContact, updatePhone, logCall } =
+    useNowData();
   const [tab, setTab] = useState<Tab>('now');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const dupCount = data?.reviewSuggestions.length ?? 0;
@@ -28,6 +29,7 @@ export default function App() {
           onBack={() => setSelectedId(null)}
           onEditContact={updateContact}
           onEditPhone={updatePhone}
+          onCall={logCall}
         />
       </SafeAreaView>
     );
@@ -48,7 +50,7 @@ export default function App() {
       </View>
 
       {tab === 'now' ? (
-        <NowScreen data={data} loading={loading} onOpen={setSelectedId} />
+        <NowScreen data={data} loading={loading} onOpen={setSelectedId} onCall={logCall} />
       ) : (
         <DedupeScreen
           groups={data?.reviewSuggestions ?? []}

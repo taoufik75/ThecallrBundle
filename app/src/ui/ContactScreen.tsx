@@ -70,11 +70,13 @@ export function ContactScreen({
   onBack,
   onEditContact,
   onEditPhone,
+  onCall,
 }: {
   contact: Contact;
   onBack: () => void;
   onEditContact: (contactId: string, patch: ContactOverride) => void;
   onEditPhone: (contactId: string, e164: string, patch: PhoneOverride) => void;
+  onCall: (e164: string) => void;
 }): React.JSX.Element {
   return (
     <View style={shared.screen}>
@@ -103,6 +105,7 @@ export function ContactScreen({
             contactId={contact.id}
             phone={n}
             onEditPhone={onEditPhone}
+            onCall={onCall}
           />
         ))}
         {contact.phoneNumbers.length === 0 && (
@@ -117,20 +120,27 @@ function PhoneCard({
   contactId,
   phone,
   onEditPhone,
+  onCall,
 }: {
   contactId: string;
   phone: PhoneNumber;
   onEditPhone: (contactId: string, e164: string, patch: PhoneOverride) => void;
+  onCall: (e164: string) => void;
 }): React.JSX.Element {
   const edit = (patch: PhoneOverride) => onEditPhone(contactId, phone.e164, patch);
   const isRetired = phone.status === 'retired';
   const isPreferred = phone.priority > 0;
 
+  const call = () => {
+    onCall(phone.e164);
+    void Linking.openURL(`tel:${phone.e164}`);
+  };
+
   return (
     <View style={[styles.card, isRetired && styles.cardRetired]}>
       <View style={styles.cardHeader}>
         <Text style={styles.e164}>{phone.e164}</Text>
-        <TouchableOpacity onPress={() => void Linking.openURL(`tel:${phone.e164}`)}>
+        <TouchableOpacity onPress={call}>
           <Text style={styles.callIcon}>📞</Text>
         </TouchableOpacity>
       </View>

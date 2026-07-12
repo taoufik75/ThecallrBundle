@@ -11,11 +11,14 @@ import {
   type Suggestion,
 } from 'contxt-domain';
 import { importDeviceContacts, readUpcomingEvents } from './contactsSource';
+import { importAndroidCallLog, recordCall } from './callHistory';
 import {
   initDb,
   loadDecision,
   loadOverrides,
   loadRaws,
+  loadRecentCallEvents,
+  saveCallEvent,
   saveDecision,
   saveOverrides,
   saveRaws,
@@ -65,13 +68,18 @@ export async function loadNowData(): Promise<NowData> {
     const unified = unifyContacts(raws, { manualMerges, dismissed });
     const contacts = applyOverrides(unified.contacts, overrides);
 
+    // Journal d'appels Android système (no-op tant qu'un module natif n'est pas
+    // branché) : on persiste les nouveaux événements.
+    for (const ev of await importAndroidCallLog()) await saveCallEvent(ev);
+    const history = await loadRecentCallEvents(30);
+
     // Relie les participants d'agenda aux contacts via leurs e-mails.
     const events = await readUpcomingEvents(unified.emailIndex);
     const snapshot: ContextSnapshot = {
       now: new Date(),
       contacts,
       upcomingEvents: events,
-      history: [],
+      history,
     };
     return {
       suggestions: engine.rank(snapshot),
@@ -143,6 +151,8 @@ export interface NowDataApi extends HookState {
   ignore: (group: MergeGroup) => void;
   updateContact: (contactId: string, patch: ContactOverride) => void;
   updatePhone: (contactId: string, e164: string, patch: PhoneOverride) => void;
+  /** Journalise un appel sortant (alimente récence/fréquence au prochain chargement). */
+  logCall: (e164: string) => void;
 }
 
 /** Hook React : charge au montage, et expose les mutations avec rechargement. */
@@ -184,5 +194,17 @@ export function useNowData(): NowDataApi {
     [load],
   );
 
-  return { ...state, reload: load, merge, ignore, updateContact, updatePhone };
+  const logCall = useCallback((e164: string) => {
+    void recordCall(e164);
+  }, []);
+
+  return {
+    ...state,
+    reload: load,
+    merge,
+    ignore,
+    updateContact,
+    updatePhone,
+    logCall,
+  };
 }

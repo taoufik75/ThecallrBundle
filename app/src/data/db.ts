@@ -2,6 +2,9 @@ import * as SQLite from 'expo-sqlite';
 import {
   makeContact,
   makePhoneNumber,
+  type CallChannel,
+  type CallDirection,
+  type CallEvent,
   type Contact,
   type ContactOverrides,
   type PhoneLabel,
@@ -55,7 +58,57 @@ export async function initDb(): Promise<void> {
       key TEXT PRIMARY KEY,
       json TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS call_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      phone_number_id TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      channel TEXT NOT NULL,
+      occurred_at INTEGER NOT NULL,
+      succeeded INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS idx_call_events_time ON call_events(occurred_at);
   `);
+}
+
+// --- Historique d'appels (récence/fréquence pour le moteur) ---
+
+/** Enregistre un événement d'appel. Ignore silencieusement les doublons exacts. */
+export async function saveCallEvent(ev: CallEvent): Promise<void> {
+  const d = await db();
+  await d.runAsync(
+    `INSERT INTO call_events (phone_number_id, direction, channel, occurred_at, succeeded)
+     VALUES (?, ?, ?, ?, ?)`,
+    ev.phoneNumberId,
+    ev.direction,
+    ev.channel,
+    ev.occurredAt.getTime(),
+    ev.succeeded === undefined ? null : ev.succeeded ? 1 : 0,
+  );
+}
+
+interface CallEventRow {
+  phone_number_id: string;
+  direction: string;
+  channel: string;
+  occurred_at: number;
+  succeeded: number | null;
+}
+
+/** Charge les événements d'appel des `sinceDays` derniers jours. */
+export async function loadRecentCallEvents(sinceDays = 30): Promise<CallEvent[]> {
+  const d = await db();
+  const cutoff = Date.now() - sinceDays * 24 * 3600 * 1000;
+  const rows = await d.getAllAsync<CallEventRow>(
+    'SELECT * FROM call_events WHERE occurred_at > ? ORDER BY occurred_at DESC',
+    cutoff,
+  );
+  return rows.map((r) => ({
+    phoneNumberId: r.phone_number_id,
+    direction: r.direction as CallDirection,
+    channel: r.channel as CallChannel,
+    occurredAt: new Date(r.occurred_at),
+    succeeded: r.succeeded === null ? undefined : r.succeeded === 1,
+  }));
 }
 
 // --- Fiches brutes importées (matière première de l'unification) ---

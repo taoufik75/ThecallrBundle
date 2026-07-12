@@ -27,10 +27,12 @@ export function NowScreen({
   data,
   loading,
   onOpen,
+  onCall,
 }: {
   data: NowData | null;
   loading: boolean;
   onOpen: (contactId: string) => void;
+  onCall: (e164: string) => void;
 }): React.JSX.Element {
   if (loading || !data) {
     return (
@@ -52,7 +54,9 @@ export function NowScreen({
         data={data.suggestions}
         keyExtractor={(s) => s.contact.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <SuggestionRow suggestion={item} onOpen={onOpen} />}
+        renderItem={({ item }) => (
+          <SuggestionRow suggestion={item} onOpen={onOpen} onCall={onCall} />
+        )}
         ListEmptyComponent={
           <Text style={styles.empty}>Aucune suggestion pour le moment.</Text>
         }
@@ -64,15 +68,17 @@ export function NowScreen({
 function SuggestionRow({
   suggestion,
   onOpen,
+  onCall,
 }: {
   suggestion: Suggestion;
   onOpen: (contactId: string) => void;
+  onCall: (e164: string) => void;
 }): React.JSX.Element {
   const { contact, bestNumber, reasons } = suggestion;
 
   const call = () => {
-    // Déclenche l'appel natif. Un enregistrement CallEvent (apprentissage,
-    // phase 2) sera ajouté avec l'historique.
+    // Journalise l'appel (récence/fréquence) puis compose le numéro.
+    onCall(bestNumber.e164);
     void Linking.openURL(`tel:${bestNumber.e164}`);
   };
 
